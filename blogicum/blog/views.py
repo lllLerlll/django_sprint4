@@ -94,7 +94,6 @@ class ProfileDetailView(DetailView):
     slug_url_kwarg = 'username'
 
     def get_context_data(self, **kwargs):
-        """Добавляем посты пользователя с пагинацией."""
         context = super().get_context_data(**kwargs)
         user = self.object
         posts = user.posts.all()
