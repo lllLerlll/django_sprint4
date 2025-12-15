@@ -5,16 +5,20 @@ from django.contrib.auth.forms import UserChangeForm
 
 
 class PostForm(forms.ModelForm):
+    """Форма для создания и редактирования постов.
+    Используется в PostCreateView и PostUpdateView."""
 
     class Meta:
         model = Post
-        fields = ('title', 'text', 'pub_date', 'location', 'category', 'image')
+        fields = ('title', 'text', 'pub_date', 'location',
+                  'category', 'image', 'is_published')
         widgets = {
             'pub_date': forms.DateInput(attrs={'type': 'date'})
         }
 
 
 class CommentForm(forms.ModelForm):
+    """Форма добавления комментариев"""
 
     class Meta:
         model = Comment
@@ -22,6 +26,9 @@ class CommentForm(forms.ModelForm):
 
 
 class ProfileEditForm(UserChangeForm):
+    """Форма для редактирования профиля пользователя.
+    Наследуется от UserChangeForm"""
+
     password = None
 
     class Meta:
