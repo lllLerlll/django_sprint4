@@ -47,15 +47,15 @@ def get_posts_queryset(for_user=None, category_slug=None, current_user=None):
 
 
 def annotate_comments(queryset):
-    """Добавляет количество комментариев к каждому посту."""
+    """Аннотация с количеством комментариев к каждому посту."""
     return queryset.annotate(comment_count=Count('comments')).order_by(
         '-pub_date')
 
 
 class PostsListView(ListView):
     """
-    Главная страница со всеми опубликованными постами,
-    на каждой странице 10 постов.
+    Отображение списка всех опубликованных постов на главной странице.
+    Наследуется от Django ListView для стандартизированного отображения.
     """
 
     model = Post
@@ -69,7 +69,8 @@ class PostsListView(ListView):
 
 
 class PostDetailView(DetailView):
-    """Класс для просмотра поста и комментариев к нему"""
+    """Детальное отображение поста со всеми комментариями.
+    Наследуется от DetailView для работы с отдельными объектами."""
 
     model = Post
     template_name = 'blog/detail.html'
@@ -77,13 +78,9 @@ class PostDetailView(DetailView):
     pk_url_kwarg = 'post_id'
 
     def get_object(self, queryset=None):
-        """Авторы видят все свои посты, остальные - только опубликованные."""
         post_id = self.kwargs.get(self.pk_url_kwarg)
         post = get_object_or_404(Post, pk=post_id)
         user = self.request.user
-        # Если пользователь - автор поста - возвращаем пост
-        # Иначе проверяем может ли пользователь просматривать данный пост,
-        # если нет - возвращаем 404
         if user == post.author:
             return post
         elif all([
@@ -96,6 +93,9 @@ class PostDetailView(DetailView):
         raise Http404
 
     def get_context_data(self, **kwargs):
+        """Добавляет:
+        - Форму для создания нового комментария
+        - Список существующих комментариев с оптимизацией запросов"""
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
         context['comments'] = self.object.comments.select_related('author')
@@ -103,7 +103,7 @@ class PostDetailView(DetailView):
 
 
 class CategoryListView(ListView):
-    """Просмотр постов в конкретной категории"""
+    """Отображение постов в конкретной категории"""
 
     model = Category
     template_name = 'blog/category.html'
@@ -126,7 +126,7 @@ class CategoryListView(ListView):
 
 
 class ProfileDetailView(DetailView):
-    """Профиль пользователя с его постами"""
+    """Отображение профиля пользователя со списком его постов."""
 
     model = get_user_model()
     template_name = 'blog/profile.html'
@@ -137,7 +137,8 @@ class ProfileDetailView(DetailView):
         return get_object_or_404(self.model, username=username)
 
     def get_context_data(self, **kwargs):
-        """Добавляет пагинированный список постов пользователя."""
+        """ Использует универсальную функцию get_posts_queryset для получения
+        постов с учетом прав доступа текущего пользователя."""
         context = super().get_context_data(**kwargs)
         user = self.object
 
@@ -152,7 +153,8 @@ class ProfileDetailView(DetailView):
 
 
 class PostCreateView(LoginRequiredMixin, CreateView):
-    """Создание поста"""
+    """Создание постаДоступно только авторизованным пользователям.
+    Использует LoginRequiredMixin для проверки аутентификации."""
 
     model = Post
     form_class = PostForm
@@ -168,7 +170,8 @@ class PostCreateView(LoginRequiredMixin, CreateView):
 
 
 class PostUpdateView(LoginRequiredMixin, UpdateView):
-    """Редактирование поста"""
+    """Редактирование поста.
+    Доступно только автору поста."""
 
     model = Post
     form_class = PostForm
@@ -176,7 +179,6 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
-        """Проверяем, что конкретный пользователь - автор поста"""
         post = self.get_object()
         if request.user != post.author:
             messages.error(request,
@@ -190,7 +192,8 @@ class PostUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class CommentCreateView(LoginRequiredMixin, CreateView):
-    """Создание комментария"""
+    """Создание комментария.
+    Комментарий автоматически привязывается к посту и текущему пользователю."""
 
     model = Comment
     form_class = CommentForm
@@ -202,6 +205,10 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
+        """
+        Заполняем автора комментария
+        и пост, к которому он относится
+        """
         form.instance.author = self.request.user
         form.instance.post = self.object_post
         return super().form_valid(form)
@@ -217,7 +224,8 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
 
 
 class CommentUpdateView(LoginRequiredMixin, UpdateView):
-    """Редактирование комментария"""
+    """Редактирование комментария,
+    доступно только автору комментария."""
 
     model = Comment
     form_class = CommentForm
@@ -238,7 +246,8 @@ class CommentUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class PostDeleteView(LoginRequiredMixin, DeleteView):
-    """Удаление поста"""
+    """Удаление поста, доступно только автору.
+    DeleteView предоставляет страницу подтверждения удаления."""
 
     model = Post
     template_name = 'blog/create.html'
